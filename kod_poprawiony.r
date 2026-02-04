@@ -12,7 +12,7 @@
 # OKRES: 2020-01-01 do dzisiaj
 # METODOLOGIA: Markowitz portfolio optimization + rolling backtest
 
-setwd("C:/Users/daza4/OneDrive/Desktop/PRACA MAGISTERSKA")
+setwd("C:/Users/daza4/OneDrive/Desktop/PRACA MAGISTERSKA/ODP_ Szkic Pracy Magisterskiej Dawid Krzysztof Drawc s202286/Praca-magisterska")
 
 options(repos = c(CRAN = "https://cran.r-project.org"))
 
