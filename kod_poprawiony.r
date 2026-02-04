@@ -42,7 +42,7 @@ dir_csv <- file.path(getwd(), "wyniki_csv")
 if (!dir.exists(dir_png)) dir.create(dir_png, recursive = TRUE)
 if (!dir.exists(dir_csv)) dir.create(dir_csv, recursive = TRUE)
 
-# --- BONUS ON/OFF: czy zapisywać PerformanceSummary do PNG ---
+# ---   ON/OFF: czy zapisywać PerformanceSummary do PNG ---
 SAVE_PERF_PNG <- TRUE
 
 
@@ -179,7 +179,7 @@ print(maxDrawdown(all_static))
 charts.PerformanceSummary(all_static,
                           main = "Portfel LS, LO vs WIG20 (statyczne wagi)")
 
-# BONUS: zapis PerformanceSummary do PNG (opcjonalnie)
+#  : zapis PerformanceSummary do PNG (opcjonalnie)
 if (SAVE_PERF_PNG) {
   png(file.path(dir_png, "performance_summary_statyczne.png"),
       width = 1600, height = 900, res = 150)
@@ -269,7 +269,7 @@ print(maxDrawdown(all_roll))
 charts.PerformanceSummary(all_roll,
                           main = "Rolling backtest: LS & LO vs WIG20")
 
-# BONUS: zapis PerformanceSummary do PNG (opcjonalnie)
+#  : zapis PerformanceSummary do PNG (opcjonalnie)
 if (SAVE_PERF_PNG) {
   png(file.path(dir_png, "performance_summary_rolling.png"),
       width = 1600, height = 900, res = 150)
