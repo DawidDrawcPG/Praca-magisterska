@@ -112,4 +112,5 @@ Miary (wypisywane też w konsoli):
 
 ## Autor / opis do pracy
 Skrypt jest przygotowany do użycia w pracy magisterskiej: porównanie strategii Markowitza (LS i LO) z benchmarkiem WIG20 na danych dziennych.
-#Dawid Drawc
+
+##Dawid Drawc
