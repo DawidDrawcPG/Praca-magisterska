@@ -12,7 +12,7 @@
 # OKRES: 2020-01-01 do dzisiaj
 # METODOLOGIA: Markowitz portfolio optimization + rolling backtest
 
-setwd("C:/Users/daza4/OneDrive/Desktop/PRACA MAGISTERSKA/ODP_ Szkic Pracy Magisterskiej Dawid Krzysztof Drawc s202286/Praca-magisterska")
+setwd("C:/Users/daza4/OneDrive/Desktop/PRACA MAGISTERSKA/02.05.26/KOD i inne z git/Praca-magisterska")
 options(repos = c(CRAN = "https://cran.r-project.org"))
 
 # Uruchom RAZ, potem zakomentuj:
@@ -24,6 +24,7 @@ options(repos = c(CRAN = "https://cran.r-project.org"))
 # install.packages("tidyr")
 # install.packages("zoo")
 # install.packages("corpcor")
+# install.packages("openxlsx")
 
 rm(list = ls())
 
@@ -35,6 +36,7 @@ library(dplyr)
 library(tidyr)
 library(zoo)
 library(corpcor)
+library(openxlsx)
 
 # --- NOWE: foldery na wyniki (PNG i CSV osobno) ---
 dir_png <- file.path(getwd(), "wyniki_png")
@@ -329,8 +331,48 @@ print(tabela_wagi)
 
 # Zapis do pliku CSV (do wklejenia w Word/Excel)
 write.csv(tabela_wagi,
-          file.path(dir_csv, "tabela_wagi_portfeli.csv"),
+          "tabela_wagi_portfeli.csv",
           row.names = FALSE)
+
+write.xlsx(tabela_wagi,
+           "tabela_wagi_portfeli.xlsx",
+           rowNames = FALSE)
+
+
+# 7.1.1. Tabela ekspozycji portfela long-short
+
+tabela_ekspozycja_ls <- data.frame(
+  Miara = c(
+    "Ekspozycja netto",
+    "Ekspozycja brutto",
+    "Suma pozycji długich",
+    "Suma pozycji krótkich"
+  ),
+  Wartosc = c(
+    sum(w_ls),
+    sum(abs(w_ls)),
+    sum(w_ls[w_ls > 0]),
+    sum(abs(w_ls[w_ls < 0]))
+  )
+)
+
+tabela_ekspozycja_ls <- tabela_ekspozycja_ls %>%
+  mutate(Wartosc = round(Wartosc, 4))
+
+print("=== Tabela ekspozycji portfela long-short ===")
+print(tabela_ekspozycja_ls)
+
+write.csv(
+  tabela_ekspozycja_ls,
+  "tabela_ekspozycja_ls.csv",
+  row.names = FALSE
+)
+
+write.xlsx(
+  tabela_ekspozycja_ls,
+  "tabela_ekspozycja_ls.xlsx",
+  rowNames = FALSE
+)
 
 
 # 7.2. Tabela 3.1 – portfele statyczne (all_static)
@@ -359,6 +401,13 @@ write.csv(tabela_3_1,
           file.path(dir_csv, "tabela_3_1_statyczne.csv"),
           row.names = FALSE)
 
+write.xlsx(
+          tabela_3_1,
+          "tabela_3_1_statyczne.xlsx",
+          rowNames = FALSE)
+
+
+
 
 # 7.3. Tabela 3.2 – rolling backtest (all_roll)
 
@@ -385,6 +434,12 @@ print(tabela_3_2)
 write.csv(tabela_3_2,
           file.path(dir_csv, "tabela_3_2_rolling.csv"),
           row.names = FALSE)
+
+write.xlsx(tabela_3_2,
+          "tabela_3_2_rolling.xlsx",
+          rowNames = FALSE
+          )
+
 
 
 # 8. Analiza makroekonomiczna portfeli
