@@ -4,15 +4,12 @@
 # ŹRÓDŁA DANYCH:
 # - Spółki GPW (KGH, PKO, PKN, CDR, LPP, ALE): Yahoo Finance via quantmod
 # - WIG20: wig20_d.csv (dane historyczne)
-# - Stopa ref NBP: stopy_proc.csv
-# - Inflacja: inflacja.csv (GUS)
-# - USD/PLN: usdpln.csv (NBP)
-# - Ceny miedzi: miedz.csv (LME/COMEX)
 # 
-# OKRES: 2020-01-01 do dzisiaj
+# OKRES: 2020-01-01 do 2026-02-04
+# WERSJA: wyniki zamrożone na dzień 2026-02-04
 # METODOLOGIA: Markowitz portfolio optimization + rolling backtest
 
-setwd("C:/Users/daza4/OneDrive/Desktop/PRACA MAGISTERSKA/02.05.26/KOD i inne z git/Praca-magisterska")
+# setwd("C:/Users/daza4/OneDrive/Desktop/PRACA MAGISTERSKA/02.05.26/KOD i inne z git/Praca-magisterska")  # uruchom skrypt z katalogu projektu
 options(repos = c(CRAN = "https://cran.r-project.org"))
 
 # Uruchom RAZ, potem zakomentuj:
@@ -54,14 +51,15 @@ SAVE_PERF_PNG <- TRUE
 tickers_assets <- c("KGH.WA", "PKO.WA", "PKN.WA",
                     "CDR.WA", "LPP.WA", "ALE.WA")
 
-start_date <- as.Date("2020-01-01")   # ~5 lat danych (okres Allegro)
-end_date   <- Sys.Date()
+start_date <- as.Date("2020-01-01")          # początek okresu badania
+analysis_end_date <- as.Date("2026-02-04")   # data zamrożenia wyników
+end_date_yahoo <- analysis_end_date + 1       # bufor techniczny dla Yahoo Finance
 
 # 1.1. Pobieramy spółki z Yahoo
 getSymbols(tickers_assets,
            src  = "yahoo",
            from = start_date,
-           to   = end_date,
+           to   = end_date_yahoo,
            auto.assign = TRUE)
 
 # 1.2. Ceny zamknięcia spółek
@@ -90,6 +88,9 @@ if (any(is.na(wig20_data$Data))) {
   wig20_data$Data <- as.Date(wig20_data$Data, format = "%d.%m.%Y")
 }
 
+# Odcinamy dane benchmarku do daty zamrożenia wyników
+wig20_data <- wig20_data[wig20_data$Data <= analysis_end_date, ]
+
 # Upewniamy się, że ceny są numeryczne
 wig20_data$Zamkniecie <- suppressWarnings(as.numeric(wig20_data$Zamkniecie))
 if (any(is.na(wig20_data$Zamkniecie))) {
@@ -101,6 +102,12 @@ colnames(prices_bench) <- "WIG20"
 
 # 1.4. Wspólny zakres dat i usunięcie NA
 all_prices <- na.omit(merge(prices_assets, prices_bench))
+all_prices <- all_prices[index(all_prices) <= analysis_end_date, ]
+
+cat("Zakres danych po synchronizacji: ",
+    as.character(start(all_prices)), " do ", as.character(end(all_prices)), "\n")
+cat("Liczba obserwacji cen po synchronizacji: ", nrow(all_prices), "\n")
+
 prices_assets <- all_prices[, colnames(prices_assets)]
 prices_bench  <- all_prices[, "WIG20", drop = FALSE]
 
@@ -151,7 +158,7 @@ rf_daily  <- rf_annual / 252
 mu_hat <- colMeans(rets_assets)
 Sigma  <- cov(rets_assets)
 
-# Estymator macierzy kowariancji typu shrinkage (Ledoit–Wolff)
+# Estymator macierzy kowariancji typu shrinkage (Ledoit–Wolf)
 Sigma_shrink <- cov.shrink(rets_assets)
 
 
@@ -211,6 +218,7 @@ p1 <- ggplot(cumrets_static_df, aes(x = Date, y = Zwrot, colour = Seria)) +
 
 print(p1)
 ggsave(file.path(dir_png, "wykres_statyczny.png"), p1, width = 10, height = 6, dpi = 300)
+ggsave("wykres_statyczny.png", p1, width = 10, height = 6, dpi = 300)
 
 
 # 5. Rolling backtest (okno 1-roczne, rebalancing miesięczny)
@@ -301,6 +309,7 @@ p2 <- ggplot(cumrets_roll_df, aes(x = Date, y = Zwrot, colour = Seria)) +
 
 print(p2)
 ggsave(file.path(dir_png, "wykres_rolling.png"), p2, width = 10, height = 6, dpi = 300)
+ggsave("wykres_rolling.png", p2, width = 10, height = 6, dpi = 300)
 
 
 # 7. Tabele: wagi i miary efektywności
@@ -331,9 +340,15 @@ print(tabela_wagi)
 
 # Zapis do pliku CSV (do wklejenia w Word/Excel)
 write.csv(tabela_wagi,
+          file.path(dir_csv, "tabela_wagi_portfeli.csv"),
+          row.names = FALSE)
+write.csv(tabela_wagi,
           "tabela_wagi_portfeli.csv",
           row.names = FALSE)
 
+write.xlsx(tabela_wagi,
+           file.path(dir_csv, "tabela_wagi_portfeli.xlsx"),
+           rowNames = FALSE)
 write.xlsx(tabela_wagi,
            "tabela_wagi_portfeli.xlsx",
            rowNames = FALSE)
@@ -364,10 +379,20 @@ print(tabela_ekspozycja_ls)
 
 write.csv(
   tabela_ekspozycja_ls,
+  file.path(dir_csv, "tabela_ekspozycja_ls.csv"),
+  row.names = FALSE
+)
+write.csv(
+  tabela_ekspozycja_ls,
   "tabela_ekspozycja_ls.csv",
   row.names = FALSE
 )
 
+write.xlsx(
+  tabela_ekspozycja_ls,
+  file.path(dir_csv, "tabela_ekspozycja_ls.xlsx"),
+  rowNames = FALSE
+)
 write.xlsx(
   tabela_ekspozycja_ls,
   "tabela_ekspozycja_ls.xlsx",
@@ -400,11 +425,18 @@ print(tabela_3_1)
 write.csv(tabela_3_1,
           file.path(dir_csv, "tabela_3_1_statyczne.csv"),
           row.names = FALSE)
+write.csv(tabela_3_1,
+          "tabela_3_1_statyczne.csv",
+          row.names = FALSE)
 
 write.xlsx(
-          tabela_3_1,
-          "tabela_3_1_statyczne.xlsx",
-          rowNames = FALSE)
+  tabela_3_1,
+  file.path(dir_csv, "tabela_3_1_statyczne.xlsx"),
+  rowNames = FALSE)
+write.xlsx(
+  tabela_3_1,
+  "tabela_3_1_statyczne.xlsx",
+  rowNames = FALSE)
 
 
 
@@ -434,218 +466,27 @@ print(tabela_3_2)
 write.csv(tabela_3_2,
           file.path(dir_csv, "tabela_3_2_rolling.csv"),
           row.names = FALSE)
+write.csv(tabela_3_2,
+          "tabela_3_2_rolling.csv",
+          row.names = FALSE)
 
 write.xlsx(tabela_3_2,
-          "tabela_3_2_rolling.xlsx",
-          rowNames = FALSE
-          )
+           file.path(dir_csv, "tabela_3_2_rolling.xlsx"),
+           rowNames = FALSE
+)
+write.xlsx(tabela_3_2,
+           "tabela_3_2_rolling.xlsx",
+           rowNames = FALSE
+)
 
+# 8. Informacja końcowa
+# Analiza makroekonomiczna została usunięta z głównego skryptu,
+# ponieważ nie jest opisana jako główny element pracy magisterskiej.
 
-
-# 8. Analiza makroekonomiczna portfeli
-
-
-# 8.0. Pomocnicza funkcja do wczytywania „dziwnych” CSV z NBP
-# (linie są w całości w cudzysłowach, np. "Data;Stopa")
-clean_macro_csv <- function(path, col_names) {
-  raw <- readLines(path, warn = FALSE)
-  # usuwamy wszystkie cudzysłowy z linii
-  raw <- gsub('"', "", raw, fixed = TRUE)
-  con  <- textConnection(raw)
-  on.exit(close(con))
-  
-  df <- read.csv(
-    con,
-    sep = ";",
-    dec = ".",
-    stringsAsFactors = FALSE
-  )
-  
-  if (!missing(col_names)) {
-    colnames(df) <- col_names
-  }
-  
-  return(df)
-}
-
-
-# 8.1. Wczytanie danych makro (CSV w katalogu roboczym)
-
-
-macro_rates <- clean_macro_csv("stopy_proc.csv", c("Data", "Stopa"))
-macro_infl  <- clean_macro_csv("inflacja.csv",   c("Data", "Inflacja"))
-macro_usd   <- clean_macro_csv("usdpln.csv",     c("Data", "Kurs"))
-macro_cu    <- clean_macro_csv("miedz.csv",      c("Data", "Cena"))
-
-macro_rates$Data <- as.Date(macro_rates$Data)
-macro_infl$Data  <- as.Date(macro_infl$Data)
-macro_usd$Data   <- as.Date(macro_usd$Data)
-macro_cu$Data    <- as.Date(macro_cu$Data)
-
-# Debug: sprawdź zakresy dat
-cat("\n=== Zakres dat rolling: ",
-    as.character(min(index(all_roll))), " do ",
-    as.character(max(index(all_roll))), " ===\n")
-
-cat("=== Zakres dat makro_rates: ",
-    as.character(min(macro_rates$Data)), " do ",
-    as.character(max(macro_rates$Data)), " ===\n")
-
-cat("=== Zakres dat makro_usd: ",
-    as.character(min(macro_usd$Data)), " do ",
-    as.character(max(macro_usd$Data)), " ===\n")
-
-# Tworzenie obiektów xts z danych makro
-rates_xts <- xts(cbind(Stopa_proc = macro_rates$Stopa),
-                 order.by = macro_rates$Data)
-
-infl_xts  <- xts(cbind(Inflacja   = macro_infl$Inflacja),
-                 order.by = macro_infl$Data)
-
-usd_xts   <- xts(cbind(USDPLN     = macro_usd$Kurs),
-                 order.by = macro_usd$Data)
-
-cu_xts    <- xts(cbind(Miedz      = macro_cu$Cena),
-                 order.by = macro_cu$Data)
-
-# Sprawdzenie nakładania zakresów
-rolling_start <- min(index(all_roll))
-rolling_end   <- max(index(all_roll))
-macro_start   <- min(macro_rates$Data)
-macro_end     <- max(macro_rates$Data)
-
-cat("\n=== DEBUG ZAKRESÓW ===\n")
-cat("rolling_start: ", as.character(rolling_start), " (class: ", class(rolling_start), ")\n")
-cat("rolling_end: ", as.character(rolling_end), " (class: ", class(rolling_end), ")\n")
-cat("macro_start: ", as.character(macro_start), " (class: ", class(macro_start), ")\n")
-cat("macro_end: ", as.character(macro_end), " (class: ", class(macro_end), ")\n")
-cat("macro_end < rolling_start? ", macro_end < rolling_start, "\n")
-cat("macro_start > rolling_end? ", macro_start > rolling_end, "\n")
-
-# Warunek: jeśli makro kończy się PRZED rozpoczęciem rolling - błąd krytyczny
-if (macro_end < rolling_start || macro_start > rolling_end) {
-  cat("\n*** BŁĄD KRYTYCZNY: Dane makro (", as.character(macro_start), " - ", as.character(macro_end), 
-      ") NIE nakładają się z rolling (", as.character(rolling_start), " - ", as.character(rolling_end), ") ***\n")
-  cat("Pominięto całą analizę makro (sekcja 8).\n\n")
-} else {
-  cat("\n=== Zakresy się nakładają - kontynuuję analizę makro ===\n")
-  
-  # Jeśli makro kończy się wcześniej niż rolling, ostrzeżenie (ale kontynuujemy z ekstrapolacją)
-  if (macro_end < rolling_end) {
-    cat("\n*** UWAGA: Dane makro kończą się ", as.character(macro_end), 
-        ", ale rolling sięga ", as.character(rolling_end), " ***\n")
-    cat("Ostatnia wartość makro będzie ekstrapolowana (forward fill).\n\n")
-  }
-  
-  # 8.2. Połączenie serii makro z portfelami rolling
-  cat("\n=== Rozpoczynam dopasowanie danych makro do rolling portfolio ===\n")
-  cat("Zakres dat all_roll: ", as.character(min(index(all_roll))), " do ", as.character(max(index(all_roll))), "\n")
-  cat("Zakres dat rates_xts: ", as.character(min(index(rates_xts))), " do ", as.character(max(index(rates_xts))), "\n")
-  
-  # Merge wszystkich makro w jedno (miesięczne)
-  macro_all <- merge(rates_xts, infl_xts, usd_xts, cu_xts)
-  cat("Macro_all po merge: ", nrow(macro_all), " wierszy (miesięczne)\n")
-  
-  # Tworzymy dzienną siatkę dat z all_roll
-  date_grid <- xts(order.by = index(all_roll))
-  cat("Date_grid (dni rolling): ", nrow(date_grid), " wierszy\n")
-  
-  # Merge makro na dzienną siatkę rolling
-  macro_on_grid <- merge(date_grid, macro_all)
-  cat("Po merge z date_grid: ", nrow(macro_on_grid), " wierszy\n")
-  cat("NA przed na.locf: ", sum(is.na(macro_on_grid)), "\n")
-  
-  # Forward fill: każda miesięczna wartość rozciąga się na kolejne dni
-  macro_on_grid <- na.locf(macro_on_grid, na.rm = FALSE)
-  cat("NA po forward fill: ", sum(is.na(macro_on_grid)), "\n")
-  
-  # Backward fill dla początku (jeśli makro zaczyna się później)
-  macro_on_grid <- na.locf(macro_on_grid, fromLast = TRUE, na.rm = FALSE)
-  cat("NA po backward fill: ", sum(is.na(macro_on_grid)), "\n")
-  
-  # Teraz wyciągamy tylko kolumny makro (bez pustego date_grid)
-  macro_aligned <- macro_on_grid[, colnames(macro_all)]
-  
-  cat("Kolumny macro_aligned: ", paste(colnames(macro_aligned), collapse = ", "), "\n")
-  cat("Kolumny all_roll: ", paste(colnames(all_roll), collapse = ", "), "\n")
-  
-  # Merge z portfelami rolling
-  dane_makro_roll <- merge(all_roll, macro_aligned, all = FALSE)
-  
-  cat("Po merge all_roll + macro: ", nrow(dane_makro_roll), " wierszy, ", ncol(dane_makro_roll), " kolumn\n")
-  cat("Kolumny dane_makro_roll: ", paste(colnames(dane_makro_roll), collapse = ", "), "\n")
-  
-  # Sprawdź czy są NA
-  if (nrow(dane_makro_roll) > 0) {
-    na_count <- sum(is.na(dane_makro_roll))
-    cat("Liczba NA w dane_makro_roll: ", na_count, "\n")
-    
-    if (na_count > 0) {
-      # Usuwamy wiersze z NA
-      dane_makro_roll <- dane_makro_roll[complete.cases(dane_makro_roll), ]
-      cat("Po complete.cases: ", nrow(dane_makro_roll), " wierszy\n")
-    }
-  }
-  
-  cat("FINALNIE dane_makro_roll: ", nrow(dane_makro_roll), " wierszy\n")
-  
-  if (nrow(dane_makro_roll) > 0) {
-    cat("Zakres dat: ", as.character(min(index(dane_makro_roll))), " do ", as.character(max(index(dane_makro_roll))), "\n")
-    cat("Pierwsze 3 wiersze danych makro:\n")
-    print(head(dane_makro_roll, 3))
-  }
-  
-  # 8.3. Warunek: czy mamy wystarczająco dużo obserwacji?
-  if (nrow(dane_makro_roll) < 30) {
-    cat("\n*** UWAGA: Za mało danych (< 30 obserwacji)! Pominięto analizę makro. ***\n")
-    cat("Możliwe przyczyny:\n")
-    cat("- brak nakładania dat\n")
-    cat("- za dużo NA po łączeniu\n")
-  } else {
-    # 8.4. Regresja
-    dane_df <- data.frame(Date = index(dane_makro_roll), coredata(dane_makro_roll))
-    
-    model_ls  <- lm(Portfel_LS_roll ~ Stopa_proc + Inflacja + USDPLN + Miedz,
-                    data = dane_df)
-    model_lo  <- lm(Portfel_LO_roll ~ Stopa_proc + Inflacja + USDPLN + Miedz,
-                    data = dane_df)
-    model_wig <- lm(WIG20           ~ Stopa_proc + Inflacja + USDPLN + Miedz,
-                    data = dane_df)
-    
-    print("=== Regresja: Portfel LS roll vs czynniki makro ===")
-    print(summary(model_ls))
-    
-    print("=== Regresja: Portfel LO roll vs czynniki makro ===")
-    print(summary(model_lo))
-    
-    print("=== Regresja: WIG20 vs czynniki makro ===")
-    print(summary(model_wig))
-    
-    # 8.5. Zapis współczynników regresji do CSV
-    coef_ls  <- as.data.frame(summary(model_ls)$coefficients)
-    coef_lo  <- as.data.frame(summary(model_lo)$coefficients)
-    coef_wig <- as.data.frame(summary(model_wig)$coefficients)
-    
-    coef_ls$Zmienna  <- rownames(coef_ls)
-    coef_lo$Zmienna  <- rownames(coef_lo)
-    coef_wig$Zmienna <- rownames(coef_wig)
-    
-    rownames(coef_ls)  <- NULL
-    rownames(coef_lo)  <- NULL
-    rownames(coef_wig) <- NULL
-    
-    write.csv(coef_ls,
-              file.path(dir_csv, "tabela_makro_portfel_LS_roll.csv"),
-              row.names = FALSE)
-    write.csv(coef_lo,
-              file.path(dir_csv, "tabela_makro_portfel_LO_roll.csv"),
-              row.names = FALSE)
-    write.csv(coef_wig,
-              file.path(dir_csv, "tabela_makro_WIG20.csv"),
-              row.names = FALSE)
-    
-    print("=== Zapisano tabele z wynikami regresji makro ===")
-  }  # koniec else (gdy >= 30 obserwacji)
-}  # koniec else (gdy zakresy się nakładają)
+writeLines(capture.output(sessionInfo()),
+           file.path(getwd(), "sessionInfo_2026-02-04.txt"))
 
 cat("\n=== SKRYPT ZAKOŃCZONY POMYŚLNIE ===\n")
+cat("Wyniki zapisano w folderach: ", dir_csv, " oraz ", dir_png, "\n")
+cat("PNG zapisano też w głównym folderze projektu jako: wykres_statyczny.png i wykres_rolling.png\n")
+cat("PNG z datą zapisano w folderze wyniki_png jako: wykres_statyczny_2026-02-04.png i wykres_rolling_2026-02-04.png\n")
